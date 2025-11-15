@@ -3,7 +3,7 @@ import axios from "axios";
 import "./App.css";
 
 // CHANGE THIS TO YOUR BACKEND IP
-const API = "http://167.99.26.124:5000";
+const API = import.meta.env.VITE_API_BASE_URL || "http://167.99.26.124:5000";
 
 function Dashboard({ data }) {
   const labels = Array.from({ length: 18 }, (_, i) => `H${i + 1}`);
