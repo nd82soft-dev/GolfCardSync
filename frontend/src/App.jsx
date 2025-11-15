@@ -2,105 +2,132 @@ import { useState } from "react";
 import axios from "axios";
 import "./App.css";
 
-// CHANGE THIS TO YOUR BACKEND IP
-const API = import.meta.env.VITE_API_BASE_URL || "http://165.22.137.226:5000";
-
-function Dashboard({ data }) {
-  const labels = Array.from({ length: 18 }, (_, i) => `H${i + 1}`);
-  const scores = data.ocr.scores;
-  const putts = data.ocr.putts;
-  const fw = data.ocr.fairways;
-  const gr = data.ocr.greens;
-
-  const totalPutts = putts.reduce((a, b) => a + b, 0);
-  const fwHit = fw.filter((f) => f === "✓").length;
-  const grHit = gr.filter((g) => g === "✓").length;
-
-  return (
-    <div style={{ marginTop: 20 }}>
-      <h2>Round Summary</h2>
-      <p><b>Total Putts:</b> {totalPutts}</p>
-      <p><b>Fairways Hit:</b> {fwHit} / 14</p>
-      <p><b>Greens Hit:</b> {grHit} / 18</p>
-
-      <h3 style={{ marginTop: 20 }}>Scores</h3>
-      <pre>{JSON.stringify(scores, null, 2)}</pre>
-
-      <h3>Putt Breakdown</h3>
-      <pre>{JSON.stringify(putts, null, 2)}</pre>
-
-      <h3>Fairways</h3>
-      <pre>{JSON.stringify(fw, null, 2)}</pre>
-
-      <h3>Greens</h3>
-      <pre>{JSON.stringify(gr, null, 2)}</pre>
-
-      <h3 style={{ marginTop: 20 }}>Strokes Gained (simple model)</h3>
-      <pre>{JSON.stringify(data.strokes, null, 2)}</pre>
-
-      <h3 style={{ marginTop: 20 }}>AI Commentary</h3>
-      <ul>
-        {data.analysis.commentary.map((c, i) => (
-          <li key={i}>• {c}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 function App() {
   const [file, setFile] = useState(null);
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [round, setRound] = useState(null);
+  const [error, setError] = useState("");
 
-  async function handleUpload(e) {
-    e.preventDefault();
-    if (!file) return alert("Please select a scorecard image.");
+  const API = import.meta.env.VITE_API_BASE_URL;
 
-    const formData = new FormData();
-    formData.append("image", file);
+  const uploadScorecard = async () => {
+    if (!file) return;
+
+    const form = new FormData();
+    form.append("image", file);
 
     setLoading(true);
-    try {
-      const res = await axios.post(`${API}/api/round/from-image`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+    setError("");
 
-      setResult(res.data);
+    try {
+      const res = await axios.post(`${API}/api/round/from-image`, form);
+      setRound(res.data);
     } catch (err) {
       console.error(err);
-      alert("Error processing scorecard");
+      setError("Error processing scorecard");
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  const renderTable = (holes, title) => (
+    <div className="card">
+      <h2 className="card-title">{title}</h2>
+
+      <div className="table-wrapper">
+        <table className="scorecard">
+          <thead>
+            <tr>
+              <th>Hole</th>
+              {holes.map((h, i) => (
+                <th key={i}>{i + 1}</th>
+              ))}
+              <th>Total</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr>
+              <td className="row-label">Score</td>
+              {holes.map((h, i) => (
+                <td key={i}>{h.score ?? "-"}</td>
+              ))}
+              <td>
+                {holes.reduce((sum, h) => sum + (h.score || 0), 0)}
+              </td>
+            </tr>
+
+            <tr>
+              <td className="row-label">Putts</td>
+              {holes.map((h, i) => (
+                <td key={i}>{h.p ?? "-"}</td>
+              ))}
+              <td>
+                {holes.reduce((sum, h) => sum + (h.p || 0), 0)}
+              </td>
+            </tr>
+
+            <tr>
+              <td className="row-label">Fairway</td>
+              {holes.map((h, i) => (
+                <td key={i}>{h.f || "-"}</td>
+              ))}
+              <td>-</td>
+            </tr>
+
+            <tr>
+              <td className="row-label">Green</td>
+              {holes.map((h, i) => (
+                <td key={i}>{h.g || "-"}</td>
+              ))}
+              <td>-</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: 20 }}>
-      <h1>GolfCardSync</h1>
-      <p>Upload a scorecard image to analyze your golf performance.</p>
+    <div className="app-container">
+      <h1 className="title">GolfCardSync</h1>
 
-      <form onSubmit={handleUpload} style={{ marginTop: 20 }}>
+      <div className="upload-card">
         <input
           type="file"
-          accept="image/*"
+          className="file-input"
           onChange={(e) => setFile(e.target.files[0])}
         />
-        <button
-          type="submit"
-          disabled={loading || !file}
-          style={{ marginLeft: 10 }}
-        >
-          {loading ? "Processing..." : "Upload"}
-        </button>
-      </form>
 
-      {result && <Dashboard data={result} />}
+        <button
+          onClick={uploadScorecard}
+          className="upload-btn"
+          disabled={loading}
+        >
+          {loading ? "Processing..." : "Upload Scorecard"}
+        </button>
+
+        {error && <p className="error">{error}</p>}
+      </div>
+
+      {round && (
+        <div className="results">
+          {renderTable(round.front9, "Front 9")}
+          {renderTable(round.back9, "Back 9")}
+
+          <div className="card total-card">
+            <h2 className="card-title">Round Summary</h2>
+            <p><strong>Front 9:</strong> {round.summary.front9}</p>
+            <p><strong>Back 9:</strong> {round.summary.back9}</p>
+
+            <p className="total-score">
+              Total Score: <span>{round.summary.total}</span>
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default App;
-

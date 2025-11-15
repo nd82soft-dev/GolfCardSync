@@ -1,42 +1,125 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+body {
+  background: #f5f7f5;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
+  color: #222;
+}
+
+.app-container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 15px;
+}
+
+.title {
   text-align: center;
+  font-size: 42px;
+  color: #146c2e;
+  margin-bottom: 30px;
+  font-weight: 700;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.upload-card {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.07);
+  text-align: center;
+  margin-bottom: 25px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.file-input {
+  display: block;
+  margin: 0 auto 15px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.upload-btn {
+  background: #1a8f39;
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.upload-btn:hover {
+  background: #15712f;
+}
+
+.upload-btn:disabled {
+  background: #9cccac;
+  cursor: not-allowed;
+}
+
+.error {
+  color: red;
+  margin-top: 10px;
+}
+
+.results {
+  margin-top: 20px;
 }
 
 .card {
-  padding: 2em;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.07);
+  margin-bottom: 25px;
 }
 
-.read-the-docs {
-  color: #888;
+.card-title {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #0f5b26;
+  font-size: 24px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.scorecard {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+
+.scorecard th {
+  background: #e9f4ea;
+  padding: 10px;
+  font-weight: 600;
+  border: 1px solid #d9e7da;
+}
+
+.scorecard td {
+  border: 1px solid #d9e7da;
+  padding: 10px;
+  text-align: center;
+}
+
+.row-label {
+  background: #eef7ef;
+  font-weight: 600;
+  color: #0f5b26;
+}
+
+.total-card p {
+  margin: 10px 0;
+}
+
+.total-score {
+  margin-top: 15px;
+  font-size: 22px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.total-score span {
+  color: #146c2e;
+  font-weight: 700;
 }
