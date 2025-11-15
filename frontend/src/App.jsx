@@ -1,45 +1,33 @@
 import { useState } from "react";
 import axios from "axios";
 import "./App.css";
-import logo from "./assets/golfcardsync-logo.png"; // ensure this file exists
+import logo from "./assets/golfcardsync-logo.png";
 
-// Build round data from the OCR section of the API response
+// Build round data from the OCR part of the API response
 function normalizeRound(apiData) {
   const top = apiData || {};
   const ocr = top.ocr || {};
   const analysis = top.analysis || {};
   const strokes = top.strokes || {};
 
-  const scoresArr = Array.isArray(ocr.scores) ? ocr.scores.map((x) => (x == null ? null : Number(x))) : [];
-  const puttsArr = Array.isArray(ocr.putts) ? ocr.putts.map((x) => (x == null ? null : Number(x))) : [];
+  const scoresArr = Array.isArray(ocr.scores)
+    ? ocr.scores.map((x) => (x == null ? null : Number(x)))
+    : [];
+  const puttsArr = Array.isArray(ocr.putts)
+    ? ocr.putts.map((x) => (x == null ? null : Number(x)))
+    : [];
   const fairwaysArr = Array.isArray(ocr.fairways) ? ocr.fairways : [];
   const greensArr = Array.isArray(ocr.greens) ? ocr.greens : [];
 
-  // If we don't have 18 scores, bail out with zeros so UI doesn't break
-  if (scoresArr.length !== 18) {
-    return {
-      round: {},
-      front: [],
-      back: [],
-      summary: { frontScore: 0, backScore: 0, totalScore: 0 },
-      stats: {
-        totalScore: 0,
-        frontScore: 0,
-        backScore: 0,
-        totalPutts: 0,
-        greensHit: 0,
-        fairwaysHit: 0,
-        holesPlayed: 0,
-      },
-    };
-  }
-
   const normalizeHit = (v) => {
-    if (v === true || v === 1 || v === "1" || v === "✓" || v === "hit" || v === "H") return "✓";
-    if (v === false || v === 0 || v === "0" || v === "X" || v === "miss") return "✕";
+    if (v === true || v === 1 || v === "1" || v === "✓" || v === "hit" || v === "H")
+      return "✓";
+    if (v === false || v === 0 || v === "0" || v === "X" || v === "miss")
+      return "✕";
     return v ?? "";
   };
 
+  // If we don't have 18 scores, still return a "blank" round so the dashboard renders
   const holes = Array.from({ length: 18 }, (_, i) => {
     const score = scoresArr[i] ?? null;
     const p = puttsArr[i] ?? null;
@@ -63,10 +51,10 @@ function normalizeRound(apiData) {
   const sumPutts = (arr) =>
     arr.reduce((sum, h) => sum + (h.p ? Number(h.p) || 0 : 0), 0);
 
-  const frontScore = sumScores(front);
-  const backScore = sumScores(back);
+  const frontScore = scoresArr.length ? sumScores(front) : 0;
+  const backScore = scoresArr.length ? sumScores(back) : 0;
   const totalScore = frontScore + backScore;
-  const totalPutts = sumPutts(holes);
+  const totalPutts = puttsArr.length ? sumPutts(holes) : 0;
 
   const greensHit =
     greensArr.filter((v) => v && v !== 0 && v !== "0" && v !== "").length || 0;
@@ -80,7 +68,7 @@ function normalizeRound(apiData) {
     totalPutts,
     greensHit,
     fairwaysHit,
-    holesPlayed: holes.length,
+    holesPlayed: scoresArr.filter((x) => x != null).length,
     strokesGained: {
       total: strokes.sg_total ?? null,
       offTee: strokes.sg_off_tee ?? null,
@@ -170,10 +158,18 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [front, setFront] = useState([]);
   const [back, setBack] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [stats, setStats] = useState({});
+  const [summary, setSummary] = useState({ frontScore: 0, backScore: 0, totalScore: 0 });
+  const [stats, setStats] = useState({
+    totalScore: 0,
+    frontScore: 0,
+    backScore: 0,
+    totalPutts: 0,
+    greensHit: 0,
+    fairwaysHit: 0,
+    holesPlayed: 0,
+  });
   const [recentRounds, setRecentRounds] = useState([]);
-  const [raw, setRaw] = useState(null);
+  const [hasRound, setHasRound] = useState(false);
   const [error, setError] = useState("");
 
   const API = import.meta.env.VITE_API_BASE_URL;
@@ -186,22 +182,17 @@ function App() {
 
     setLoading(true);
     setError("");
-    setFront([]);
-    setBack([]);
-    setSummary(null);
-    setStats({});
-    setRaw(null);
 
     try {
       const res = await axios.post(`${API}/api/round/from-image`, form);
       console.log("API response:", res.data);
-      setRaw(res.data);
 
       const norm = normalizeRound(res.data);
       setFront(norm.front);
       setBack(norm.back);
       setSummary(norm.summary);
       setStats(norm.stats);
+      setHasRound(true);
 
       const entry = {
         id: Date.now(),
@@ -245,8 +236,7 @@ function App() {
                 ))}
                 <td>
                   {holes.reduce(
-                    (sum, h) =>
-                      sum + (h.score ? Number(h.score) || 0 : 0),
+                    (sum, h) => sum + (h.score ? Number(h.score) || 0 : 0),
                     0
                   )}
                 </td>
@@ -288,7 +278,7 @@ function App() {
   };
 
   return (
-    // Always dark theme now
+    // Always dark theme, full-page dashboard
     <div className="app-root dark">
       <div className="app-container">
         <header className="header">
@@ -303,6 +293,7 @@ function App() {
           </div>
         </header>
 
+        {/* Upload bar pinned at top of dashboard */}
         <div className="upload-card">
           <div className="upload-top">
             <input
@@ -327,73 +318,75 @@ function App() {
           {error && <p className="error">{error}</p>}
         </div>
 
-        {summary && (
-          <>
-            <section className="dashboard">
-              <div className="card stats-card">
-                <h2 className="card-title">Round Summary</h2>
-                <div className="stats-grid">
-                  <div>
-                    <div className="stat-label">Front 9</div>
-                    <div className="stat-value">
-                      {summary.frontScore ?? "-"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="stat-label">Back 9</div>
-                    <div className="stat-value">
-                      {summary.backScore ?? "-"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="stat-label">Total</div>
-                    <div className="stat-value highlight">
-                      {summary.totalScore ?? "-"}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="stat-label">Holes</div>
-                    <div className="stat-value">
-                      {stats.holesPlayed || "-"}
-                    </div>
-                  </div>
+        {/* DASHBOARD IS ALWAYS VISIBLE – starts empty, fills after upload */}
+        <section className="dashboard">
+          <div className="card stats-card">
+            <h2 className="card-title">Round Summary</h2>
+            {!hasRound && (
+              <p className="hint">
+                Upload a scorecard to see your scoring breakdown.
+              </p>
+            )}
+            <div className="stats-grid">
+              <div>
+                <div className="stat-label">Front 9</div>
+                <div className="stat-value">
+                  {summary.frontScore ?? 0}
                 </div>
               </div>
-
-              <div className="card rings-card">
-                <h2 className="card-title">Consistency Rings</h2>
-                <div className="rings-row">
-                  <ProgressRing
-                    label="Greens Hit"
-                    value={stats.greensHit || 0}
-                    max={18}
-                  />
-                  <ProgressRing
-                    label="Fairways Hit"
-                    value={stats.fairwaysHit || 0}
-                    max={14}
-                  />
-                  <ProgressRing
-                    label="Total Putts"
-                    value={stats.totalPutts || 0}
-                    max={36}
-                  />
+              <div>
+                <div className="stat-label">Back 9</div>
+                <div className="stat-value">
+                  {summary.backScore ?? 0}
                 </div>
               </div>
-            </section>
-
-            <section className="dashboard">
-              {renderTable(front, "Front 9", 0)}
-              {renderTable(back, "Back 9", 9)}
-            </section>
-
-            <section className="dashboard">
-              <div className="card full-width">
-                <HoleChart holes={[...front, ...back]} />
+              <div>
+                <div className="stat-label">Total</div>
+                <div className="stat-value highlight">
+                  {summary.totalScore ?? 0}
+                </div>
               </div>
-            </section>
-          </>
-        )}
+              <div>
+                <div className="stat-label">Holes</div>
+                <div className="stat-value">
+                  {stats.holesPlayed || (hasRound ? 18 : "-")}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card rings-card">
+            <h2 className="card-title">Consistency Rings</h2>
+            <div className="rings-row">
+              <ProgressRing
+                label="Greens Hit"
+                value={stats.greensHit || 0}
+                max={18}
+              />
+              <ProgressRing
+                label="Fairways Hit"
+                value={stats.fairwaysHit || 0}
+                max={14}
+              />
+              <ProgressRing
+                label="Total Putts"
+                value={stats.totalPutts || 0}
+                max={36}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="dashboard">
+          {renderTable(front, "Front 9", 0)}
+          {renderTable(back, "Back 9", 9)}
+        </section>
+
+        <section className="dashboard">
+          <div className="card full-width">
+            <HoleChart holes={[...front, ...back]} />
+          </div>
+        </section>
 
         {recentRounds.length > 0 && (
           <section className="dashboard recent-section">
@@ -419,18 +412,6 @@ function App() {
                   </div>
                 ))}
               </div>
-            </div>
-          </section>
-        )}
-
-        {/* Only show raw response if we truly couldn't parse any holes */}
-        {raw && (!summary || (stats.holesPlayed || 0) === 0) && (
-          <section className="dashboard">
-            <div className="card full-width">
-              <h2 className="card-title">Raw API Response</h2>
-              <pre className="raw-json">
-                {JSON.stringify(raw, null, 2)}
-              </pre>
             </div>
           </section>
         )}

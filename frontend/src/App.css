@@ -26,7 +26,7 @@ body,
 #root {
   margin: 0;
   padding: 0;
-  background: var(--bg);
+  background: #020617; /* solid dark background */
 }
 
 body {
@@ -35,9 +35,15 @@ body {
   color: var(--text);
 }
 
+/* app wrapper fills viewport */
+.app-root {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
 .app-container {
   max-width: 1024px;
-  margin: 12px auto 40px; /* tighter top spacing */
+  margin: 12px auto 40px;
   padding: 0 16px;
 }
 
@@ -46,7 +52,7 @@ body {
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -74,21 +80,6 @@ body {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
-}
-
-.dark-toggle {
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--card-bg);
-  padding: 8px 14px;
-  cursor: pointer;
-  color: var(--text);
-  font-size: 14px;
-  box-shadow: var(--shadow);
-}
-
-.dark-toggle:hover {
-  background: var(--primary-soft);
 }
 
 /* Upload card */
