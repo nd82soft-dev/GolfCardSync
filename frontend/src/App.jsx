@@ -1,13 +1,14 @@
 import { useState } from "react";
 import axios from "axios";
 import "./App.css";
-import logo from "./assets/golfcardsync-logo.png"; // make sure this path/file exists
+import logo from "./assets/golfcardsync-logo.png"; // make sure this exists
 
+// Try several shapes and fall back to "analysis" arrays like scores/putts/etc.
 function normalizeRound(apiData) {
   const top = apiData || {};
 
-  // Pick the most likely “round-like” object
-  const candidate =
+  // Prefer explicit "round" if present
+  let candidate =
     top.round ||
     top.analysis?.round ||
     top.analysis ||
@@ -15,6 +16,7 @@ function normalizeRound(apiData) {
     top.strokes ||
     top;
 
+  // If candidate already looks like a round with front9/back9, keep our old logic
   let front =
     candidate.front9 ||
     candidate.front ||
@@ -27,32 +29,131 @@ function normalizeRound(apiData) {
   front = Array.isArray(front) ? front : [];
   back = Array.isArray(back) ? back : [];
 
-  const all = [...front, ...back];
+  // If we already got real holes, we’re done — compute stats & return
+  if (front.length || back.length) {
+    const all = [...front, ...back];
+    const sumField = (arr, field) =>
+      arr.reduce((sum, h) => sum + (h[field] ? Number(h[field]) || 0 : 0), 0);
 
-  const sumField = (arr, field) =>
-    arr.reduce((sum, h) => sum + (h[field] ? Number(h[field]) || 0 : 0), 0);
+    const s = candidate.summary || top.summary || {};
+    const frontScore = s.front9 ?? s.front ?? sumField(front, "score");
+    const backScore = s.back9 ?? s.back ?? sumField(back, "score");
+    const totalScore = s.total ?? s.round ?? frontScore + backScore;
 
-  const s = candidate.summary || top.summary || {};
+    const totalPutts =
+      s.putts_total ??
+      s.total_putts ??
+      s.putts ??
+      sumField(all, "p");
 
-  const frontScore = s.front9 ?? s.front ?? sumField(front, "score");
-  const backScore = s.back9 ?? s.back ?? sumField(back, "score");
-  const totalScore = s.total ?? s.round ?? frontScore + backScore;
+    const greensHit =
+      s.greens_hit ??
+      s.greens ??
+      all.filter((h) => h.g === true || h.g === "✓" || h.g === "hit").length;
 
-  const totalPutts =
-    s.putts_total ??
-    s.total_putts ??
-    s.putts ??
-    sumField(all, "p");
+    const fairwaysHit =
+      s.fairways_hit ??
+      s.fairways ??
+      all.filter((h) => h.f === true || h.f === "✓" || h.f === "hit").length;
 
+    const stats = {
+      totalScore,
+      frontScore,
+      backScore,
+      totalPutts,
+      greensHit,
+      fairwaysHit,
+      holesPlayed: all.length,
+    };
+
+    return { round: candidate, front, back, summary: { frontScore, backScore, totalScore }, stats };
+  }
+
+  // ---- NEW: try "analysis" arrays like scores, putts, fairways, greens ----
+  const analysis = top.analysis || candidate || top;
+  let scoresArr = null;
+  let puttsArr = null;
+  let fairwaysArr = null;
+  let greensArr = null;
+
+  if (analysis && typeof analysis === "object") {
+    for (const [key, val] of Object.entries(analysis)) {
+      if (!Array.isArray(val)) continue;
+      if (val.length !== 18) continue; // treat 18-length arrays as per-hole data
+
+      const lower = key.toLowerCase();
+      const nums = val.map((x) => (x == null ? null : Number(x)));
+
+      if (!scoresArr && /(score|stroke|gross)/.test(lower)) scoresArr = nums;
+      else if (!puttsArr && /putt/.test(lower)) puttsArr = nums;
+      else if (!fairwaysArr && /(fairway|fw)/.test(lower)) fairwaysArr = val;
+      else if (!greensArr && /(green|gir)/.test(lower)) greensArr = val;
+
+      // if we still have no scores but *some* array of length 18 is here, use the first one as scores
+      if (!scoresArr && !/(putt|fair|green|gir)/.test(lower)) {
+        scoresArr = nums;
+      }
+    }
+  }
+
+  if (!scoresArr) {
+    // absolutely nothing recognizable; give up but return empty
+    return {
+      round: analysis,
+      front: [],
+      back: [],
+      summary: { frontScore: 0, backScore: 0, totalScore: 0 },
+      stats: {
+        totalScore: 0,
+        frontScore: 0,
+        backScore: 0,
+        totalPutts: 0,
+        greensHit: 0,
+        fairwaysHit: 0,
+        holesPlayed: 0,
+      },
+    };
+  }
+
+  // Build 18 holes from arrays
+  const holes = Array.from({ length: 18 }, (_, i) => {
+    const score = scoresArr[i] ?? null;
+    const p = puttsArr ? puttsArr[i] ?? null : null;
+
+    const fwRaw = fairwaysArr ? fairwaysArr[i] : null;
+    const grRaw = greensArr ? greensArr[i] : null;
+
+    const normalizeHit = (v) => {
+      if (v === true || v === 1 || v === "1" || v === "✓" || v === "hit" || v === "H") return "✓";
+      if (v === false || v === 0 || v === "0" || v === "X" || v === "miss") return "✕";
+      return v ?? "";
+    };
+
+    return {
+      hole: i + 1,
+      score,
+      p,
+      f: normalizeHit(fwRaw),
+      g: normalizeHit(grRaw),
+    };
+  });
+
+  const frontHoles = holes.slice(0, 9);
+  const backHoles = holes.slice(9, 18);
+
+  const sumScores = (arr) =>
+    arr.reduce((sum, h) => sum + (h.score ? Number(h.score) || 0 : 0), 0);
+  const sumPutts = (arr) =>
+    arr.reduce((sum, h) => sum + (h.p ? Number(h.p) || 0 : 0), 0);
+
+  const frontScore = sumScores(frontHoles);
+  const backScore = sumScores(backHoles);
+  const totalScore = frontScore + backScore;
+  const totalPutts = sumPutts(holes);
   const greensHit =
-    s.greens_hit ??
-    s.greens ??
-    all.filter((h) => h.g === true || h.g === "✓" || h.g === "hit").length;
-
+    greensArr?.filter((v) => v && v !== 0 && v !== "0").length || 0;
   const fairwaysHit =
-    s.fairways_hit ??
-    s.fairways ??
-    all.filter((h) => h.f === true || h.f === "✓" || h.f === "hit").length;
+    fairwaysArr?.filter((v) => v && v !== 0 && v !== "0").length || 0;
 
   const stats = {
     totalScore,
@@ -61,13 +162,13 @@ function normalizeRound(apiData) {
     totalPutts,
     greensHit,
     fairwaysHit,
-    holesPlayed: all.length,
+    holesPlayed: holes.length,
   };
 
   return {
-    round: candidate,
-    front,
-    back,
+    round: analysis,
+    front: frontHoles,
+    back: backHoles,
     summary: { frontScore, backScore, totalScore },
     stats,
   };
@@ -141,7 +242,6 @@ function HoleChart({ holes }) {
 function App() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [round, setRound] = useState(null);
   const [front, setFront] = useState([]);
   const [back, setBack] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -161,7 +261,6 @@ function App() {
 
     setLoading(true);
     setError("");
-    setRound(null);
     setFront([]);
     setBack([]);
     setSummary(null);
@@ -174,13 +273,11 @@ function App() {
       setRaw(res.data);
 
       const norm = normalizeRound(res.data);
-      setRound(norm.round);
       setFront(norm.front);
       setBack(norm.back);
       setSummary(norm.summary);
       setStats(norm.stats);
 
-      // keep last 8 scorecards
       const entry = {
         id: Date.now(),
         createdAt: new Date().toLocaleString(),
@@ -311,7 +408,7 @@ function App() {
           {error && <p className="error">{error}</p>}
         </div>
 
-        {round && (
+        {summary && (
           <>
             <section className="dashboard">
               <div className="card stats-card">
@@ -320,19 +417,19 @@ function App() {
                   <div>
                     <div className="stat-label">Front 9</div>
                     <div className="stat-value">
-                      {summary?.frontScore ?? "-"}
+                      {summary.frontScore ?? "-"}
                     </div>
                   </div>
                   <div>
                     <div className="stat-label">Back 9</div>
                     <div className="stat-value">
-                      {summary?.backScore ?? "-"}
+                      {summary.backScore ?? "-"}
                     </div>
                   </div>
                   <div>
                     <div className="stat-label">Total</div>
                     <div className="stat-value highlight">
-                      {summary?.totalScore ?? "-"}
+                      {summary.totalScore ?? "-"}
                     </div>
                   </div>
                   <div>
@@ -379,7 +476,6 @@ function App() {
           </>
         )}
 
-        {/* Recent scorecards (last 8 this session) */}
         {recentRounds.length > 0 && (
           <section className="dashboard recent-section">
             <div className="card full-width">
@@ -408,7 +504,7 @@ function App() {
           </section>
         )}
 
-        {/* Raw response card if we still couldn't interpret it */}
+        {/* Only show raw API if we truly couldn't parse any holes */}
         {raw && !front.length && !back.length && (
           <section className="dashboard">
             <div className="card full-width">

@@ -20,9 +20,16 @@
   --shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
 }
 
-body {
+/* reset + background */
+html,
+body,
+#root {
   margin: 0;
+  padding: 0;
   background: var(--bg);
+}
+
+body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, Arial, sans-serif;
   color: var(--text);
@@ -30,9 +37,11 @@ body {
 
 .app-container {
   max-width: 1024px;
-  margin: 16px auto 40px;
+  margin: 12px auto 40px; /* tighter top spacing */
   padding: 0 16px;
 }
+
+/* Header / logo */
 
 .header {
   display: flex;
