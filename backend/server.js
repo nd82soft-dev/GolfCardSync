@@ -1,82 +1,67 @@
 import express from "express";
-import cors from "cors";
-import fileUpload from "express-fileupload";
+import multer from "multer";
 import axios from "axios";
-import FormData from "form-data";
 
 const app = express();
+const upload = multer();
 
-app.use(cors());
-app.use(express.json());
-app.use(fileUpload());
+const OCR_URL = process.env.OCR_URL || "http://localhost:8001";
+const STROKES_URL = process.env.STROKES_URL || "http://localhost:8002";
+const ANALYSIS_URL = process.env.ANALYSIS_URL || "http://localhost:8003";
 
-// Python services
-const OCR_URL = "http://127.0.0.1:8001/ocr";
-const STROKES_URL = "http://127.0.0.1:8002/strokes";
-const ANALYSIS_URL = "http://127.0.0.1:8003/patterns";
-
-// Simple health check
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
-});
-
-// Main endpoint: image -> OCR -> strokes -> analysis
-app.post("/api/round/from-image", async (req, res) => {
+app.post("/api/round/from-image", upload.single("image"), async (req, res) => {
   try {
-    if (!req.files || !req.files.image) {
-      return res.status(400).json({ error: "No image uploaded" });
+    if (!req.file) {
+      return res.status(400).json({ error: "No image file uploaded" });
     }
 
-    const image = req.files.image;
+    // 1) Call OCR service
+    const formData = new FormData();
+    formData.append("image", new Blob([req.file.buffer]), req.file.originalname);
 
-    // Build multipart form for OCR service
-    const form = new FormData();
-    form.append("image", image.data, {
-      filename: image.name,
-      contentType: image.mimetype
+    const ocrResp = await axios.post(`${OCR_URL}/ocr`, formData, {
+      headers: formData.getHeaders ? formData.getHeaders() : {},
+      timeout: 30000,
     });
 
-    // 1) OCR
-    const ocrResp = await axios.post(OCR_URL, form, {
-      headers: form.getHeaders()
+    const ocr = ocrResp.data;
+
+    // 2) Call strokes-gained service
+    const strokesResp = await axios.post(`${STROKES_URL}/strokes`, {
+      scores: ocr.scores,
+      putts: ocr.putts,
+      pars: ocr.pars,
+      // add other fields if your strokes service expects them
     });
 
-    const ocrData = ocrResp.data;
-    const { scores, putts, fairways, greens } = ocrData;
+    const strokes = strokesResp.data;
 
-    // 2) Strokes gained (rough model)
-    const strokesResp = await axios.post(STROKES_URL, {
-      scores,
-      putts
+    // 3) Call analysis service
+    const analysisResp = await axios.post(`${ANALYSIS_URL}/analyze`, {
+      scores: ocr.scores,
+      putts: ocr.putts,
+      fairways: ocr.fairways,
+      greens: ocr.greens,
+      strokes,
     });
 
-    const strokesData = strokesResp.data;
+    const analysis = analysisResp.data;
 
-    // 3) Miss pattern / AI commentary
-    const analysisResp = await axios.post(ANALYSIS_URL, {
-      fairways,
-      greens,
-      scores,
-      putts
-    });
+    // 4) Combined round object
+    const round = {
+      id: Date.now().toString(),
+      created_at: new Date().toISOString(),
+      ocr,
+      strokes,
+      analysis,
+    };
 
-    const analysisData = analysisResp.data;
-
-    return res.json({
-      ocr: ocrData,
-      strokes: strokesData,
-      analysis: analysisData
-    });
+    res.json(round);
   } catch (err) {
-    console.error("Error in /api/round/from-image:", err?.response?.data || err.message || err);
-    return res.status(500).json({
-      error: "Processing failed",
-      detail: err?.response?.data || String(err)
+    console.error("Error in /api/round/from-image:", err.response?.data || err);
+    res.status(500).json({
+      error: "Failed to process scorecard",
+      details: err.response?.data || err.message,
     });
   }
-});
-
-const PORT = 5000;
-app.listen(PORT, () => {
-  console.log(`GolfCardSync backend running on http://localhost:${PORT}`);
 });

@@ -1,87 +1,74 @@
 from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import JSONResponse
-import pytesseract
-from PIL import Image
-import io
-import numpy as np
-import cv2
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="GolfCardSync OCR Service")
+app = FastAPI()
 
-def preprocess_image(img_bytes: bytes) -> np.ndarray:
-    # Simple grayscale + threshold; you can extend with deskew + grid detect
-    image = Image.open(io.BytesIO(img_bytes)).convert("L")
-    np_img = np.array(image)
-    _, thresh = cv2.threshold(np_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return thresh
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def extract_round_data(text: str):
-    # Very naive extraction:
-    # - Scores: numbers between 3–9
-    # - Putts: numbers between 1–3
-    # - Fairways/Greens: symbols ✓ X arrows etc from text
 
-    import re
-    tokens = re.findall(r"[0-9]+", text)
-    scores_all = [int(t) for t in tokens if 3 <= int(t) <= 9]
-    putts_all = [int(t) for t in tokens if 1 <= int(t) <= 3]
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
-    scores = scores_all[:18]
-    putts = putts_all[:18]
 
-    symbols = []
-    for ch in text:
-        if ch in ["✓", "✔", "x", "X", "→", "←", "↑", "↓", "<", ">", "^", "v"]:
-            symbols.append(ch)
+@app.post("/ocr")
+async def ocr_dummy(image: UploadFile = File(...)):
+    """
+    Temporary dummy OCR endpoint.
+    Always returns a valid 18-hole JSON structure so
+    the backend and frontend never crash.
+    """
+    # Just consume the file so FastAPI is happy
+    await image.read()
 
-    def norm_symbol(c: str) -> str:
-        if c in ["✓", "✔"]:
-            return "✓"
-        if c in ["x", "X"]:
-            return "X"
-        if c in [">", "→"]:
-            return "→"
-        if c in ["<", "←"]:
-            return "←"
-        if c in ["^", "↑"]:
-            return "↑"
-        if c in ["v", "V", "↓"]:
-            return "↓"
-        return c
+    scores = [4, 6, 4, 4, 4, 3, 4, 3, 5, 3, 5, 4, 4, 3, 4, 3, 4, 4]
+    putts = [2, 2, 2, 1, 1, 1, 1, 2, 2, 1, 2, 1, 2, 1, 1, 1, 1, 2]
+    fairways = ["" for _ in range(18)]
+    greens = ["" for _ in range(18)]
+    pars = [4, 5, 4, 4, 4, 3, 5, 3, 4, 4, 5, 4, 4, 3, 4, 4, 4, 4]
 
-    symbols = [norm_symbol(s) for s in symbols]
+    per_hole = []
+    for i in range(18):
+        per_hole.append(
+            {
+                "hole": i + 1,
+                "score": scores[i],
+                "par": pars[i],
+                "putts": putts[i],
+                "fairway_mark": fairways[i],
+                "green_mark": greens[i],
+                "miss_direction": "unknown",
+            }
+        )
 
-    # First 18 as fairways, next 18 as greens (rough heuristic)
-    fairways = symbols[:18]
-    greens   = symbols[18:36]
+    front9_total = sum(scores[:9])
+    back9_total = sum(scores[9:])
+    total = front9_total + back9_total
 
-    # Pad if shorter
-    def pad(arr, n, fill=""):
-        return arr + [fill] * (n - len(arr))
-
-    scores = pad(scores, 18, 0)
-    putts = pad(putts, 18, 0)
-    fairways = pad(fairways, 18, "")
-    greens = pad(greens, 18, "")
+    front9_putts = sum(putts[:9])
+    back9_putts = sum(putts[9:])
+    total_putts = front9_putts + back9_putts
 
     return {
         "scores": scores,
         "putts": putts,
         "fairways": fairways,
         "greens": greens,
-        "raw_text": text
+        "pars": pars,
+        "per_hole": per_hole,
+        "front9_total": front9_total,
+        "back9_total": back9_total,
+        "total": total,
+        "front9_putts": front9_putts,
+        "back9_putts": back9_putts,
+        "total_putts": total_putts,
+        "totals_match_card": True,
+        "validation_notes": ["Dummy OCR response (no real image parsing yet)."],
+        "raw_text": "",
     }
-
-@app.post("/ocr")
-async def ocr_scorecard(image: UploadFile = File(...)):
-    try:
-        img_bytes = await image.read()
-        pre = preprocess_image(img_bytes)
-        pil_img = Image.fromarray(pre)
-        text = pytesseract.image_to_string(pil_img)
-
-        data = extract_round_data(text)
-        return JSONResponse(data)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
