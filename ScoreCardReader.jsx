@@ -8,7 +8,7 @@ import { getFirestore, collection, query, limit, orderBy, onSnapshot, addDoc, se
 setLogLevel('debug');
 
 // --- Logo Configuration ---
-// Note: This path assumes the 'custom-logo.png' file was uploaded and is accessible.
+// Note: You may need to place 'custom-logo.png' in a 'public' folder for Vercel/Vite deployment
 const LOGO_SRC = "/uploaded_files/custom-logo.png"; 
 
 // --- VERCEL API CONFIGURATION (Client-Side) ---
@@ -17,7 +17,6 @@ const LOGO_SRC = "/uploaded_files/custom-logo.png";
 const VERCEL_API_ENDPOINT = '/api/analyze-scorecard'; 
 
 // The JSON schema definition used to guide the Gemini model.
-// This is defined here for clarity, but the serverless function also needs to use it.
 const SCORECARD_SCHEMA = {
   type: "OBJECT",
   properties: {
@@ -824,26 +823,6 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 font-sans antialiased flex flex-col">
-      <script src="https://cdn.tailwindcss.com"></script>
-      <style>{`
-        body { background-color: #111827; }
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-        .font-sans { font-family: 'Inter', sans-serif; }
-        /* Ensure the main content uses the full height below the header and above the footer */
-        .main-content {
-            flex-grow: 1;
-            padding-top: 56px; /* Header height */
-            padding-bottom: 64px; /* Footer height */
-        }
-        /* Hide scrollbars on body for a cleaner look, common in mobile web apps */
-        ::-webkit-scrollbar {
-            display: none;
-        }
-        html {
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
-        }
-      `}</style>
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       
       {/* Header is fixed at the top */}
