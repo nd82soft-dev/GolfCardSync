@@ -482,16 +482,20 @@ const App = () => {
           throw new Error("API request failed after all retries.");
       }
 
-      const result = await response.json(); 
-
       if (!response.ok) {
-        // Handle error returned by the Vercel function
-        setError(result.error || "Server failed to analyze the scorecard.");
-        console.error("Server Error Response:", result);
-        return;
+        // The server returned an error. Attempt to parse the error message.
+        const errorText = await response.text();
+        try {
+          // Try parsing as JSON, which is the expected error format from our function
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || errorJson.detail || `Server responded with status ${response.status}`);
+        } catch (e) {
+          // If it's not JSON, it's likely a generic Vercel error page (HTML/text)
+          throw new Error(errorText.substring(0, 150) || `Server responded with status ${response.status}`);
+        }
       }
       
-      const parsedData = result; // Result is the clean JSON object
+      const parsedData = await response.json(); // Now it's safe to parse as JSON
 
       // --- Save data to Firestore (Client-side) ---
       if (db && userId) {
@@ -514,7 +518,7 @@ const App = () => {
 
     } catch (e) {
       console.error("OCR or Network Error:", e);
-      setError("Failed to connect or process data. Please check the network, or the file size is too large.");
+      setError(e.message || "An unknown error occurred. Please check the console for details.");
     } finally {
       setLoading(false);
     }
