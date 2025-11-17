@@ -4,7 +4,7 @@
 // Define the API endpoint and model
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent';
 // NOTE: The API key must be set as an environment variable in your Vercel project settings.
-const API_KEY = process.env.GEMINI_API_KEY; 
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
 
 // --- JSON Schema for Structured Output ---
 // This schema guides the model to return a predictable, parseable JSON object.
