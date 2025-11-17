@@ -1,7 +1,7 @@
 {
   "rewrites": [
     { 
-      "source": "/api/analyze-scorecard", 
+      "source": "/api/analyze-scorecard.jsx", 
       "destination": "/api/analyze-scorecard.js" 
     }
   ]
