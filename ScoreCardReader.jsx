@@ -44,6 +44,7 @@ const SCORECARD_SCHEMA = {
 };
 
 
+
 /**
  * Core handler function for the Vercel Serverless route.
  * @param {object} req - Vercel request object.
@@ -91,7 +92,7 @@ module.exports = async (req, res) => {
       responseSchema: SCORECARD_SCHEMA
     }
   };
-
+  
   try {
     const response = await fetch(`${GEMINI_API_URL}?key=${API_KEY}`, {
       method: 'POST',
@@ -128,4 +129,9 @@ module.exports = async (req, res) => {
     // Return a generic error to the client
     return res.status(500).json({ error: `An unexpected error occurred during processing: ${error.message}` });
   }
+  await fetch('/api/analyze-scorecard', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ imageData, mimeType }),
+});
 };
