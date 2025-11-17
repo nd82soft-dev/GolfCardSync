@@ -48,7 +48,7 @@ const SCORECARD_SCHEMA = {
  * @param {object} req - Vercel request object.
  * @param {object} res - Vercel response object.
  */
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
@@ -128,4 +128,4 @@ module.exports = async (req, res) => {
     // Return a generic error to the client
     return res.status(500).json({ error: `An unexpected error occurred during processing: ${error.message}` });
   }
-};
+}
