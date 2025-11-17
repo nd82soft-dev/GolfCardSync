@@ -4,15 +4,5 @@
       "source": "/api/analyze-scorecard", 
       "destination": "/api/analyze-scorecard.js" 
     }
-  ],
-  "builds": [
-    {
-      "src": "ScorecardReader.jsx",
-      "use": "@vercel/static-build"
-    },
-    {
-      "src": "api/analyze-scorecard.js",
-      "use": "@vercel/node"
-    }
   ]
 }
