@@ -1,4 +1,3 @@
-// package.json
 {
   "name": "golfcardsync-mobile",
   "private": true,
@@ -23,3 +22,4 @@
     "vite": "^5.0.8"
   }
 }
+
