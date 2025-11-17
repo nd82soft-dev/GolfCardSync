@@ -3,7 +3,7 @@
 // This function securely calls the Gemini API for structured scorecard analysis.
 
 // NOTE: The API key must be set as an environment variable in your Vercel project settings.
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
 // --- JSON Schema for Structured Output ---
 // This schema guides the model to return a predictable, parseable JSON object.
