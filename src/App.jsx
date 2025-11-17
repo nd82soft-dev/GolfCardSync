@@ -1,3 +1,4 @@
+// App.jsx
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Camera, Upload, LayoutGrid, BarChart3, Loader2, Users, X, Clock, Eye, TrendingUp, ClipboardList, Menu, RefreshCw, User, List } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
@@ -787,8 +788,6 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 font-sans antialiased flex flex-col">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      
       {/* Header is fixed at the top */}
       <Header title={'GolfCardSync'} />
 
