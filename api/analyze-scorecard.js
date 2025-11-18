@@ -79,10 +79,10 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Firebase environment variables (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY) are not set.' });
   }
 
-  const { imageData, mimeType } = req.body;
+  const { imageData, mimeType, userId } = req.body;
 
-  if (!imageData || !mimeType) {
-    return res.status(400).json({ error: 'Missing imageData or mimeType in request body.' });
+  if (!imageData || !mimeType || !userId) {
+    return res.status(400).json({ error: 'Missing imageData, mimeType, or userId in request body.' });
   }
 
   // --- Gemini API Payload Construction ---
@@ -141,9 +141,12 @@ export default async function handler(req, res) {
     // Parse the JSON text into a clean JavaScript object
     const parsedData = JSON.parse(jsonText);
 
-    // Save the parsed data to Firestore
-    const docRef = await db.collection('scorecards').add(parsedData);
-    console.log('Scorecard saved to Firestore with ID:', docRef.id);
+    // Define a placeholder for appId, as it's not provided in the request or environment
+    const defaultAppId = 'golfcardsync-app'; // Replace with actual appId if available
+
+    // Save the parsed data to Firestore under the user's specific path
+    const docRef = await db.collection('artifacts').doc(defaultAppId).collection('users').doc(userId).collection('scorecards').add(parsedData);
+    console.log('Scorecard saved to Firestore for user', userId, 'with ID:', docRef.id);
 
     // Success: Return the parsed, structured data to the client
     return res.status(200).json({ message: 'Scorecard analyzed and saved successfully!', scorecardId: docRef.id, data: parsedData });

@@ -3,17 +3,15 @@ rules_version = '2';
 service cloud.firestore {
 match /databases/{database}/documents {
 
-// Allow authenticated users to manage their own private data
+// Allow authenticated users (including service accounts) to manage their own private data
 // This rule allows the user (identified by request.auth.uid) to read and write
 // documents only within their own user-specific path (userId).
-// This is where all scorecard history will be saved.
+// For serverless functions using Admin SDK, `request.auth != null` will be true,
+// allowing creation of documents in any user's path.
 match /artifacts/{appId}/users/{userId}/{document=**} {
-allow read, write: if request.auth.uid == userId;
-}
-
-// Allow authenticated users (service account) to create documents in the 'scorecards' collection
-match /scorecards/{document=**} {
+allow read: if request.auth.uid == userId;
 allow create: if request.auth != null;
+allow write: if request.auth.uid == userId;
 }
 
 // Default rule: Deny access to all other paths unless explicitly allowed above.
