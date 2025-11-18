@@ -1,3 +1,5 @@
+// analyze-scorecard.js
+// Vercel Serverless Function: /api/analyze-scorecard
 // This function securely calls the Gemini API for structured scorecard analysis.
 
 // NOTE: The API key must be set as an environment variable in your Vercel project settings.
@@ -5,6 +7,46 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 
 // --- JSON Schema for Structured Output ---
 // This schema guides the model to return a predictable, parseable JSON object.
+const SCORECARD_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    courseName: { type: "STRING", description: "The name of the golf course." },
+    date: { type: "STRING", description: "The date the round was played (e.g., YYYY-MM-DD)." },
+    players: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          name: { type: "STRING", description: "The player's name." },
+          totalScore: { type: "INTEGER", description: "The player's total gross score for 18 holes (or 9 if only 9 holes are present)." },
+          stats: {
+            type: "ARRAY",
+            description: "An array of 18 or 9 hole-by-hole statistics.",
+            items: {
+              type: "OBJECT",
+              properties: {
+                hole: { type: "INTEGER" },
+                score: { type: "INTEGER", description: "The gross score on this hole." },
+                fairway: { type: "STRING", description: "Fairway status: 'Hit', 'Missed Left', 'Missed Right', or 'N/A' (for Par 3s or unrecorded)." },
+                greens: { type: "STRING", description: "GiR status: 'Hit', 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right', or 'Missed Right'. Use 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right' for missed shots. Use 'N/A' (for unrecorded)." },
+                putts: { type: "INTEGER", description: "Number of putts on this hole, -1 if not recorded." }
+              },
+              required: ["hole", "score"]
+            }
+          }
+        },
+        required: ["name", "totalScore", "stats"]
+      }
+    }
+  },
+  required: ["courseName", "players"]
+};
+
+
+/**
+ * Core handler function for the Vercel Serverless route.
+ * @param {object} req - Vercel request object.
+ * @param {object} res - Vercel response object.
  */
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -19,14 +61,43 @@ export default async function handler(req, res) {
   }
 
   const { imageData, mimeType } = req.body;
+
+  if (!imageData || !mimeType) {
+    return res.status(400).json({ error: 'Missing imageData or mimeType in request body.' });
+  }
+
+  // --- Gemini API Payload Construction ---
+  const systemInstruction = "You are a specialized AI designed to perform Optical Character Recognition (OCR) on golf scorecard images. Extract all specified data, including course name, date, player names, total scores, and individual hole statistics (score, fairway status, greens in regulation (GiR) status, and putts). Output the result strictly as a JSON object matching the provided schema. If a specific stat (like putts) is missing or illegible, use -1 for integers or 'N/A' for strings. Always prioritize the data for the player in the first available slot.";
+  const userPrompt = "Analyze this golf scorecard image and extract all player data according to the schema. If multiple players are present, prioritize the first player listed for detailed hole-by-hole stats. Ensure all 18 or 9 holes present on the card are accounted for.";
+  
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: userPrompt },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: imageData
+            }
+          }
+        ]
+      }
+    ],
+    systemInstruction: {
+        parts: [{ text: systemInstruction }]
+    },
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: SCORECARD_SCHEMA
+    }
   };
 
   try {
     const geminiResponse = await fetch(`${GEMINI_API_URL}?key=${API_KEY}`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json' 
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
@@ -70,7 +141,7 @@ export default async function handler(req, res) {
 
     let parsedData;
     try {
-        // Even with `application/json` type, cleaning markdown is a robust fallback.
+        // The API is configured for JSON output, but cleaning is a robust fallback.
         const cleanedText = rawText.replace(/^```json\s*/, '').replace(/```$/, '');
         parsedData = JSON.parse(cleanedText);
     } catch (parseError) {
