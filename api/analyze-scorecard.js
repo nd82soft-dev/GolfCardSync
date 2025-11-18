@@ -3,7 +3,7 @@
 // This function securely calls the Gemini API for structured scorecard analysis.
 
 // NOTE: The API key must be set as an environment variable in your Vercel project settings.
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent';
 
 // --- JSON Schema for Structured Output ---
 // This schema guides the model to return a predictable, parseable JSON object.
@@ -28,7 +28,7 @@ const SCORECARD_SCHEMA = {
                 hole: { type: "INTEGER" },
                 score: { type: "INTEGER", description: "The gross score on this hole." },
                 fairway: { type: "STRING", description: "Fairway status: 'Hit', 'Missed Left', 'Missed Right', or 'N/A' (for Par 3s or unrecorded)." },
-                greens: { type: "STRING", description: "GiR status: 'Hit', 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right', or 'Missed Right'. Use 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right' for missed shots. Use 'N/A' (for unrecorded)." },
+                greens: { type: "STRING", description: "GiR status: 'Hit', 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right'. Use 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right' for missed shots. Use 'N/A' (for unrecorded)." },
                 putts: { type: "INTEGER", description: "Number of putts on this hole, -1 if not recorded." }
               },
               required: ["hole", "score"]
