@@ -1,9 +1,9 @@
-// analyze-scorecard.js
+/ analyze-scorecard.js
 // Vercel Serverless Function: /api/analyze-scorecard
 // This function securely calls the Gemini API for structured scorecard analysis.
 
 // NOTE: The API key must be set as an environment variable in your Vercel project settings.
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent';
+https //generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash
 
 // --- JSON Schema for Structured Output ---
 // This schema guides the model to return a predictable, parseable JSON object.
@@ -28,7 +28,7 @@ const SCORECARD_SCHEMA = {
                 hole: { type: "INTEGER" },
                 score: { type: "INTEGER", description: "The gross score on this hole." },
                 fairway: { type: "STRING", description: "Fairway status: 'Hit', 'Missed Left', 'Missed Right', or 'N/A' (for Par 3s or unrecorded)." },
-                greens: { type: "STRING", description: "GiR status: 'Hit', 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right', or 'Missed Right'. Use 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right' for missed shots. Use 'N/A' (for unrecorded)." },
+                greens: { type: "STRING", description: "GiR status: 'Hit', 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right', or 'N/A' (for unrecorded). Use 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right' for missed shots." },
                 putts: { type: "INTEGER", description: "Number of putts on this hole, -1 if not recorded." }
               },
               required: ["hole", "score"]
@@ -112,6 +112,7 @@ export default async function handler(req, res) {
     
     // Extract the raw JSON text from the model's response
     const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+    console.log("Raw JSON text from Gemini:", jsonText); // Log raw JSON text
 
     if (!jsonText) {
         return res.status(500).json({ error: 'Model response was empty or malformed.' });
@@ -119,6 +120,7 @@ export default async function handler(req, res) {
     
     // Parse the JSON text into a clean JavaScript object
     const parsedData = JSON.parse(jsonText);
+    console.log("Parsed data from Gemini:", parsedData); // Log parsed data
 
     // Success: Return the parsed, structured data to the client
     return res.status(200).json(parsedData);

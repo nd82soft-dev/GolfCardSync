@@ -496,7 +496,6 @@ const App = () => {
       }
       
       const parsedData = await response.json(); // Now it's safe to parse as JSON
-      console.log("Parsed data from API (client-side):", parsedData); // Log parsed data on client
 
       // --- Save data to Firestore (Client-side) ---
       if (db && userId) {
@@ -517,9 +516,15 @@ const App = () => {
       setShowModalImage(true); 
       setFile(null); // Clear file input after successful upload
 
+      setFile(null); // Clear file input after successful upload
+
     } catch (e) {
-      console.error("OCR or Network Error:", e);
-      setError(e.message || "An unknown error occurred. Please check the console for details.");
+        let errorMessage = "An unknown error occurred. Please check the console for details.";
+        if (e instanceof Error) {
+            errorMessage = e.message;
+        }
+        console.error("OCR or Network Error:", e);
+        setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -811,3 +816,5 @@ const App = () => {
 };
 
 export default App;
+
+
