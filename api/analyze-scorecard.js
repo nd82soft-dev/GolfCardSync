@@ -6,7 +6,7 @@
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent';
 
 // Initialize Firebase Admin SDK
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
 // Check if Firebase app is already initialized to prevent multiple initializations
 if (!admin.apps.length) {
