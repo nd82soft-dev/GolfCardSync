@@ -79,10 +79,11 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Firebase environment variables (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY) are not set.' });
   }
 
-  const { imageData, mimeType, userId } = req.body;
+  const { imageData, mimeType } = req.body;
+  const userId = req.body.userId || 'anonymous'; // Use 'anonymous' if userId is not provided
 
-  if (!imageData || !mimeType || !userId) {
-    return res.status(400).json({ error: 'Missing imageData, mimeType, or userId in request body.' });
+  if (!imageData || !mimeType) {
+    return res.status(400).json({ error: 'Missing imageData or mimeType in request body.' });
   }
 
   // --- Gemini API Payload Construction ---
