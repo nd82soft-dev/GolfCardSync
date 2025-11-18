@@ -1,9 +1,9 @@
-// analyze-scorecard.js
+/ analyze-scorecard.js
 // Vercel Serverless Function: /api/analyze-scorecard
 // This function securely calls the Gemini API for structured scorecard analysis.
 
 // NOTE: The API key must be set as an environment variable in your Vercel project settings.
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent';
+https //generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash
 
 // --- JSON Schema for Structured Output ---
 // This schema guides the model to return a predictable, parseable JSON object.
