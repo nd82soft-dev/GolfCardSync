@@ -27,8 +27,8 @@ const SCORECARD_SCHEMA = {
               properties: {
                 hole: { type: "INTEGER" },
                 score: { type: "INTEGER", description: "The gross score on this hole." },
-                fairway: { type: "STRING", description: "Fairway status: 'Hit', 'Missed Left', 'Missed Right', or 'N/A' (for Par 3s or unrecorded)." },
-                greens: { type: "STRING", description: "GiR status: 'Hit', 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right'. Use 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right' for missed shots. Use 'N/A' (for unrecorded)." },
+                fairway: { type: "STRING", description: "Fairway status: 'Hit', 'Missed Left', 'Missed Right', or 'NA' (for Par 3s or unrecorded)." },
+                greens: { type: "STRING", description: "GiR status: 'Hit', 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right'. Use 'Missed Long', 'Missed Short', 'Missed Left', 'Missed Right' for missed shots. Use 'NA' (for unrecorded)." },
                 putts: { type: "INTEGER", description: "Number of putts on this hole, -1 if not recorded." }
               },
               required: ["hole", "score"]
