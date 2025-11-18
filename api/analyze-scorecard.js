@@ -108,25 +108,42 @@ export default async function handler(req, res) {
         return res.status(response.status).json({ error: `Gemini API call failed: ${response.statusText}`, detail: errorText });
     }
 
-    const result = await response.json();
-    
-    // Extract the raw JSON text from the model's response
-    const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+ const result = await response.json();
+     
+     // Extract the raw JSON text from the model's response
+-    const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
++    const candidate = result.candidates?.[0];
++    const rawText = candidate?.content?.parts?.[0]?.text;
+ 
+-    if (!jsonText) {
+-        return res.status(500).json({ error: 'Model response was empty or malformed.' });
++    if (!rawText) {
++        // This can happen if the model's response is blocked for safety reasons or is otherwise empty.
++        const finishReason = candidate?.finishReason;
++        const safetyRatings = candidate?.safetyRatings;
++        console.error("Model response was empty or blocked.", { finishReason, safetyRatings });
++        const errorMessage = `Model response was empty. Finish Reason: ${finishReason || 'Unknown'}.`;
++        return res.status(500).json({ error: errorMessage });
+     }
+     
+-    // Parse the JSON text into a clean JavaScript object
+-    const parsedData = JSON.parse(jsonText);
++    // Clean the response: Gemini can sometimes wrap the JSON in ```json ... ```
++    // This regex removes the leading ```json and trailing ``` from the string.
++    const cleanedText = rawText.replace(/^```json\s*/, '').replace(/```$/, '');
++    
++    // Parse the cleaned JSON text into a JavaScript object
++    const parsedData = JSON.parse(cleanedText);
+ 
+     // Success: Return the parsed, structured data to the client
+     return res.status(200).json(parsedData);
+ 
+   } catch (error) {
+     console.error('Server processing error:', error);
+-    // Return a generic error to the client
+     return res.status(500).json({ error: `An unexpected error occurred during processing: ${error.message}` });
+   }
+ }
 
-    if (!jsonText) {
-        return res.status(500).json({ error: 'Model response was empty or malformed.' });
-    }
-    
-    // Parse the JSON text into a clean JavaScript object
-    const parsedData = JSON.parse(jsonText);
 
-    // Success: Return the parsed, structured data to the client
-    return res.status(200).json(parsedData);
-
-  } catch (error) {
-    console.error('Server processing error:', error);
-    // Return a generic error to the client
-    return res.status(500).json({ error: `An unexpected error occurred during processing: ${error.message}` });
-  }
-}
 
