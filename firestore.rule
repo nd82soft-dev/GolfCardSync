@@ -11,6 +11,11 @@ match /artifacts/{appId}/users/{userId}/{document=**} {
 allow read, write: if request.auth.uid == userId;
 }
 
+// Allow authenticated users (service account) to create documents in the 'scorecards' collection
+match /scorecards/{document=**} {
+allow create: if request.auth != null;
+}
+
 // Default rule: Deny access to all other paths unless explicitly allowed above.
 match /{document=**} {
 allow read, write: if false;
