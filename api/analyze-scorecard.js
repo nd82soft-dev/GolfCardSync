@@ -33,7 +33,7 @@ const SCORECARD_SCHEMA = {
       items: {
         type: "OBJECT",
         properties: {
-          name: { type: "STRING", description: "The player's name." },
+          name: { type: "STRING", description: "The player's name. Extract the name that matches the provided name format configuration. If a specific name is provided in the format description, search the entire scorecard for that exact name and use it, regardless of which line it appears on. Do not simply extract the first line of text." },
           totalScore: { type: "INTEGER", description: "The player's total gross score for 18 holes (or 9 if only 9 holes are present)." },
           stats: {
             type: "ARRAY",
@@ -76,19 +76,48 @@ export default async function handler(req, res) {
 
   // Ensure Firebase environment variables are set
   if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+    console.error('Missing Firebase environment variables. Project ID:', process.env.FIREBASE_PROJECT_ID);
     return res.status(500).json({ error: 'Firebase environment variables (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY) are not set.' });
   }
+  console.log('Firebase Project ID being used:', process.env.FIREBASE_PROJECT_ID);
 
-  const { imageData, mimeType } = req.body;
+  const { imageData, mimeType, nameFormats, extraStats } = req.body;
   const userId = req.body.userId || 'anonymous'; // Use 'anonymous' if userId is not provided
 
   if (!imageData || !mimeType) {
     return res.status(400).json({ error: 'Missing imageData or mimeType in request body.' });
   }
 
+  // Build system instruction based on name format configurations
+  let nameFormatInstruction = '';
+  if (nameFormats && Object.keys(nameFormats).length > 0) {
+    const formatDescriptions = Object.entries(nameFormats)
+      .filter(([key, value]) => value && value.trim().length > 0)
+      .map(([key, value]) => {
+        let label = '';
+        let positionHint = '';
+        if (key === 'blankFirst') {
+          label = 'Name 1';
+          positionHint = ' (typically on the second line, as the first line is blank)';
+        } else if (key === 'firstOnly') {
+          label = 'Name 2';
+          positionHint = ' (first name only format)';
+        } else {
+          label = 'Name 3';
+          positionHint = ' (first and last name format)';
+        }
+        return `- ${label}${positionHint}: "${value}"`;
+      })
+      .join('\\n');
+    
+    if (formatDescriptions) {
+      nameFormatInstruction = `CRITICAL - Player Name Identification Instructions:\\n${formatDescriptions}\\n\\nMANDATORY EXTRACTION RULES:\\n1. If a format description contains a SPECIFIC NAME (e.g., "Nick", "John", "Mike"), you MUST search the ENTIRE scorecard for that exact name and extract it, regardless of which line it appears on.\\n2. DO NOT simply extract the first line of text you see. The name may appear on line 2, line 3, or elsewhere on the scorecard.\\n3. For "Name 1" format: If the description says the first line is blank, the player name will be on the second line. If a specific name is provided (like "Nick"), search for "Nick" anywhere on the scorecard and extract it.\\n4. For "Name 2" format: Look for a first name only (e.g., "John" not "John Smith"). If a specific name is provided, search for that exact name.\\n5. For "Name 3" format: Look for a full name (e.g., "John Smith"). If a specific name is provided, search for that exact name.\\n6. PRIORITY: If a specific name is provided in any format description, that name takes ABSOLUTE PRIORITY over any other text on the scorecard. Search the entire scorecard for that name and use it.\\n7. The player name field in the JSON must contain the actual player name found on the scorecard that matches the format description, NOT just the first line of text.\\n8. If you cannot find the specified name on the scorecard, then and only then should you extract the name from the appropriate line based on the format description (e.g., second line for blank first line format).`;
+    }
+  }
+
   // --- Gemini API Payload Construction ---
-  const systemInstruction = "You are a specialized AI designed to perform Optical Character Recognition (OCR) on golf scorecard images. Extract all specified data, including course name, date, player names, total scores, and individual hole statistics (score, fairway status, greens in regulation (GiR) status, and putts). Output the result strictly as a JSON object matching the provided schema. If a specific stat (like putts) is missing or illegible, use -1 for integers or 'N/A' for strings. Always prioritize the data for the player in the first available slot.";
-  const userPrompt = "Analyze this golf scorecard image and extract all player data according to the schema. If multiple players are present, prioritize the first player listed for detailed hole-by-hole stats. Ensure all 18 or 9 holes present on the card are accounted for.";
+  const systemInstruction = `You are a specialized OCR AI for golf scorecards. Extract course name, date, ALL player names with their total scores, and hole-by-hole stats (score, fairway, greens, putts) for EACH player.${nameFormatInstruction ? ' ' + nameFormatInstruction : ''} Return JSON matching the schema. Use -1 for missing integers, 'N/A' for missing strings.`;
+  const userPrompt = "Extract ALL players and their complete hole-by-hole statistics. Include every player visible on the scorecard with full stats for all 18 or 9 holes.";
   
   const payload = {
     contents: [
@@ -110,7 +139,9 @@ export default async function handler(req, res) {
     },
     generationConfig: {
       responseMimeType: "application/json",
-      responseSchema: SCORECARD_SCHEMA
+      responseSchema: SCORECARD_SCHEMA,
+      temperature: 0.1, // Lower temperature for more consistent/faster responses
+      maxOutputTokens: 4096 // Limit output tokens for faster processing
     }
   };
 
@@ -142,8 +173,10 @@ export default async function handler(req, res) {
     // Parse the JSON text into a clean JavaScript object
     const parsedData = JSON.parse(jsonText);
 
-    // Define a placeholder for appId, as it's not provided in the request or environment
-    const defaultAppId = 'golfcardsync-app'; // Replace with actual appId if available
+// The projectId from the client-side Firebase configuration
+const defaultAppId = 'golfcardsync';
+const firestorePath = `artifacts/${defaultAppId}/users/${userId}/scorecards`;
+console.log('Attempting to save scorecard to Firestore path:', firestorePath);
 
     // Save the parsed data to Firestore under the user's specific path
     const docRef = await db.collection('artifacts').doc(defaultAppId).collection('users').doc(userId).collection('scorecards').add(parsedData);

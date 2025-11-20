@@ -8,7 +8,7 @@ match /databases/{database}/documents {
 // documents only within their own user-specific path (userId).
 // For serverless functions using Admin SDK, `request.auth != null` will be true,
 // allowing creation of documents in any user's path.
-match /artifacts/{appId}/users/{userId}/{document=**} {
+match /artifacts/{anyAppId}/users/{userId}/{document=**} {
 allow read: if request.auth.uid == userId;
 allow create: if request.auth != null;
 allow write: if request.auth.uid == userId;
