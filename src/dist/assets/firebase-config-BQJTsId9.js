@@ -1,0 +1,1 @@
+const a=()=>({apiKey:"AIzaSyDEgz7Hau3SBjzIhuqnyDc-Mf9z9j3bGdE",authDomain:"golfcardsync.firebaseapp.com",projectId:"golfcardsync",storageBucket:"golfcardsync.firebasestorage.app",messagingSenderId:"82501150268",appId:"1:82501150268:web:aa8d0c698cfc665ed70539"}),c=()=>"golfcardsync",n=()=>null;export{c as getAppId,a as getFirebaseConfig,n as getInitialAuthToken};
